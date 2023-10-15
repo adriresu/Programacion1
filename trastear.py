@@ -1,9 +1,10 @@
 from tkinter import filedialog
+from tkinter import *
+from PIL import ImageTk
 from PIL import Image
 import exifread
 import folium
 import os
-from tkinter import *
 import tkintermapview
 
 def convert_to_decimal_degrees(coord):
@@ -24,10 +25,13 @@ def get_coordinates(image_path):
     with open(image_path, 'rb') as image_file:
         metadata = exifread.process_file(image_file)
     # location data
-    latitude = convert_to_decimal_degrees(metadata.get('GPS GPSLatitude'))
-    longitude = convert_to_decimal_degrees(metadata.get('GPS GPSLongitude'))
-    latitude_ref = metadata.get('GPS GPSLatitudeRef')
-    longitude_ref = metadata.get('GPS GPSLongitudeRef')
+    latitude = False
+    longitude = False
+    if metadata.get('GPS GPSLatitude') or metadata.get('GPS GPSLongitude'):
+        latitude = convert_to_decimal_degrees(metadata.get('GPS GPSLatitude'))
+        longitude = convert_to_decimal_degrees(metadata.get('GPS GPSLongitude'))
+        latitude_ref = metadata.get('GPS GPSLatitudeRef')
+        longitude_ref = metadata.get('GPS GPSLongitudeRef')
     return latitude, longitude
 
 # Add files
@@ -43,41 +47,32 @@ my_label = LabelFrame(root)
 
 my_label.pack(pady=20)
 
+locations = []
+
 files = filedialog.askopenfilenames()
 
-for file in files:
-    get_coordinates(file)
+for file_path in files:
+    latitude, longitude = get_coordinates(file_path)
+    locations.append({latitude:longitude}) if latitude and longitude else None
 
 map_widget = tkintermapview.TkinterMapView(my_label, width=1920, height=1080, corner_radius=0)
+map_widget.set_zoom(8)
+
+def marker_callback(marker):
+    print(marker.text)
+    marker.delete()
 
 map_widget.pack()
 
+for file_path in files:
+    image_marker = ImageTk.PhotoImage(Image.open(file_path).resize((40, 40)))
+    marker_1 = map_widget.set_marker(52.476062, 13.394172, text=file_path.split("/")[-1], icon=image_marker, command=marker_callback)
 
-# def add_files():
-#     global files_added
-#     global show_map_frame
-#     files = filedialog.askopenfilenames()
-#     for file in files:
-#         files_added = True
-#         print("Archivo añadido:", file)
-#     if files_added:
-#         show_map()
-#         show_map_frame = tk.Frame(root)
-#         frame = HtmlFrame(root, horizontal_scrollbar="auto")
-#         frame.Loadfile(os.getcwd() + "\\map.html")
-#         frame.pack()
-#     switch_view(show_map_frame)
+map_widget.set_position(40.447303, -3.998593, marker=False)
 
-# def switch_view(frame):
-#     add_files_frame.pack_forget()
-#     if frame is not None:
-#         frame.pack_forget()
-#     frame.pack()
-
-# add_files_frame = tk.Frame(root)
-# add_files_button = tk.Button(add_files_frame, text="Añadir archivos", command=add_files)
-# add_files_button.pack()
-
-# switch_view(add_files_frame)
+# for location in locations:
+#     latitude = list(location.keys())[0]
+#     longitude = location[latitude]
+#     map_widget.add_marker(latitude, longitude)
 
 root.mainloop()
