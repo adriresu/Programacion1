@@ -7,19 +7,15 @@ import folium
 import os
 import tkintermapview
 
-def convert_to_decimal_degrees(coord):
-    if isinstance(coord.values[0], exifread.utils.Ratio):
-        degrees = float(coord.values[0].num) / float(coord.values[0].den)
+def convert_to_decimal_degrees(gps_coords, gps_coords_ref):
+    d, m, s =  gps_coords.values
+    dd = d + m / 60 + s / 3600
+    if gps_coords_ref.values.upper() in ('S', 'W'):
+        return -dd
+    elif gps_coords_ref.values.upper() in ('N', 'E'):
+        return dd
     else:
-        degrees = float(coord.values[0])
-
-    minutes = float(coord.values[1].num) / float(coord.values[1].den) / 60
-    seconds = float(coord.values[2].num) / float(coord.values[2].den) / 3600
-
-    if isinstance(degrees, float) and isinstance(minutes, float) and isinstance(seconds, float):
-        return degrees + minutes + seconds
-    else:
-        return None
+        raise RuntimeError('Incorrect gps_coords_ref {}'.format(gps_coords_ref))
 
 def get_coordinates(image_path):
     with open(image_path, 'rb') as image_file:
@@ -28,10 +24,11 @@ def get_coordinates(image_path):
     latitude = False
     longitude = False
     if metadata.get('GPS GPSLatitude') or metadata.get('GPS GPSLongitude'):
-        latitude = convert_to_decimal_degrees(metadata.get('GPS GPSLatitude'))
-        longitude = convert_to_decimal_degrees(metadata.get('GPS GPSLongitude'))
+        latitude = convert_to_decimal_degrees(metadata.get('GPS GPSLatitude'), metadata.get("GPS GPSLatitudeRef"))
+        longitude = convert_to_decimal_degrees(metadata.get('GPS GPSLongitude'), metadata.get("GPS GPSLongitudeRef"))
         latitude_ref = metadata.get('GPS GPSLatitudeRef')
         longitude_ref = metadata.get('GPS GPSLongitudeRef')
+        print("Tiene coordenadas: {} {} {} {} {}".format(latitude, longitude, latitude_ref, longitude_ref))
     return latitude, longitude
 
 # Add files
@@ -47,16 +44,16 @@ my_label = LabelFrame(root)
 
 my_label.pack(pady=20)
 
-locations = []
+locations = {}
 
 files = filedialog.askopenfilenames()
 
 for file_path in files:
     latitude, longitude = get_coordinates(file_path)
-    locations.append({latitude:longitude}) if latitude and longitude else None
+    locations[file_path.split("/")[-1]] = {"latitude":latitude, "longitude":longitude} if latitude and longitude else None
 
 map_widget = tkintermapview.TkinterMapView(my_label, width=1920, height=1080, corner_radius=0)
-map_widget.set_zoom(8)
+map_widget.set_zoom(3)
 
 def marker_callback(marker):
     print(marker.text)
@@ -65,10 +62,12 @@ def marker_callback(marker):
 map_widget.pack()
 
 for file_path in files:
-    image_marker = ImageTk.PhotoImage(Image.open(file_path).resize((40, 40)))
-    marker_1 = map_widget.set_marker(52.476062, 13.394172, text=file_path.split("/")[-1], icon=image_marker, command=marker_callback)
+    image_name = file_path.split("/")[-1]
+    if locations[image_name]:
+        image_marker = ImageTk.PhotoImage(Image.open(file_path).resize((40, 40)))
+        marker = map_widget.set_marker(locations[image_name]["latitude"], locations[image_name]["longitude"], text=image_name, icon=image_marker, image_zoom_visibility=(0, float("inf")), command=marker_callback)
 
-map_widget.set_position(40.447303, -3.998593, marker=False)
+map_widget.set_position(40.447303, 3.998593, marker=False)
 
 # for location in locations:
 #     latitude = list(location.keys())[0]
