@@ -23,12 +23,14 @@ def get_coordinates(image_path):
     # location data
     latitude = False
     longitude = False
+    if metadata:
+        print(metadata)
     if metadata.get('GPS GPSLatitude') or metadata.get('GPS GPSLongitude'):
         latitude = convert_to_decimal_degrees(metadata.get('GPS GPSLatitude'), metadata.get("GPS GPSLatitudeRef"))
         longitude = convert_to_decimal_degrees(metadata.get('GPS GPSLongitude'), metadata.get("GPS GPSLongitudeRef"))
         latitude_ref = metadata.get('GPS GPSLatitudeRef')
         longitude_ref = metadata.get('GPS GPSLongitudeRef')
-        print("Tiene coordenadas: {} {} {} {} {}".format(latitude, longitude, latitude_ref, longitude_ref))
+        # print("Tiene coordenadas: {} {} {} {} {}".format(latitude, longitude, latitude_ref, longitude_ref))
     return latitude, longitude
 
 # Add files
